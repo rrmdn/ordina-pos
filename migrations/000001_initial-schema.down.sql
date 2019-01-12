@@ -1,0 +1,8 @@
+DROP TABLE IF EXISTS partner;
+DROP TABLE IF EXISTS dish_order;
+DROP TABLE IF EXISTS customer_order;
+DROP TABLE IF EXISTS device_info;
+DROP TABLE IF EXISTS customer;
+DROP TABLE IF EXISTS dish;
+DROP TABLE IF EXISTS dining_table;
+DROP TABLE IF EXISTS restaurant;
