@@ -12,6 +12,7 @@ CREATE TABLE restaurant (
 
 CREATE TABLE dining_table (
     id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
+    created_at timestamp without time zone NOT NULL DEFAULT now(),
     restaurant_id uuid REFERENCES restaurant(id),
     name character varying(50) NOT NULL
 );

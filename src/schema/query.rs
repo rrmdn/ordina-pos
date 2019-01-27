@@ -4,12 +4,14 @@ use juniper::{FieldError, FieldResult};
 use super::context::{Context};
 use super::restaurant::Restaurant;
 use super::dining_table::DiningTable;
+use super::dish::Dish;
 
 pub struct Query;
 
 graphql_object!(Query: Context |&self| {
-    field apiVersion() -> &str {
-        "1.0"
+    field request_auth(&executor, phone: String) -> FieldResult<String> {
+        executor.context().request_auth(&phone)?;
+        Ok("Requested".to_owned())
     }
     field restaurant(&executor, id: String) -> FieldResult<Restaurant> {
         let conn = executor.context().pool.get()?;
@@ -33,6 +35,7 @@ graphql_object!(Query: Context |&self| {
             location_url: row.get("location_url"),
         })
     }
+
     field dining_table(&executor, id: String) -> FieldResult<DiningTable> {
         let conn = executor.context().pool.get()?;
         let parsed_id = Uuid::parse_str(&id)?;
@@ -49,6 +52,28 @@ graphql_object!(Query: Context |&self| {
         Ok(DiningTable {
             id: row_id.hyphenated().to_string(),
             name: row.get("name"),
+            restaurant_id: row.get("restaurant_id"),
+        })
+    }
+
+    field dish(&executor, id: String) -> FieldResult<Dish> {
+        let conn = executor.context().pool.get()?;
+        let parsed_id = Uuid::parse_str(&id)?;
+        let rows = conn.query("
+            SELECT *
+            FROM dish
+            WHERE id = $1
+        ", &[&parsed_id])?;
+        if rows.is_empty() {
+            return Err(FieldError::new("Not found", graphql_value!({ "internal_error": "Not found" })));
+        }
+        let row = rows.get(0);
+        let row_id: Uuid = row.get("id");
+        Ok(Dish {
+            id: row_id.hyphenated().to_string(),
+            name: row.get("name"),
+            price: row.get("price"),
+            description: row.get("description"),
             restaurant_id: row.get("restaurant_id"),
         })
     }

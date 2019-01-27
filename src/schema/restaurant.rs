@@ -54,3 +54,12 @@ graphql_object!(Restaurant: Context | &self | {
     Ok(dining_table_vec)
   }
 });
+
+#[derive(GraphQLInputObject)]
+pub struct NewRestaurant {
+    pub name: String,
+    pub address: String,
+    pub logo: String,
+    pub cover: String,
+    pub location_url: String,
+}

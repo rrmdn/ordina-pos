@@ -8,4 +8,9 @@ services:
     environment:
       POSTGRES_PASSWORD: 28u3423b43b4h234h
       POSTGRES_DB: ordina-pos
+  redis:
+    image: redis
+    restart: always
+    ports:
+      - "6378:6379"
       
