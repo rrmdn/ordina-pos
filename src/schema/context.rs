@@ -18,16 +18,6 @@ pub enum Roles {
     Partner,
 }
 
-impl Roles {
-    fn as_str(&self) -> &str {
-        match self {
-            &Roles::Admin => "Admin",
-            &Roles::Customer => "Customer",
-            &Roles::Partner => "Partner",
-        }
-    }
-}
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
     pub sub: String,

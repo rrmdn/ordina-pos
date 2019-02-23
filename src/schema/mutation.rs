@@ -64,8 +64,8 @@ graphql_object!(Mutation: Context | &self | {
         let context = executor.context();
         context.authorize(Roles::Partner)?;
         let conn = context.pool.get()?;
+        let restaurant_id = context.get_partner_restaurant_id()?;
         let id = Uuid::new_v4();
-        let restaurant_id = Uuid::parse_str(&input.restaurant_id)?;
         let inserts = conn.execute("
             INSERT INTO dining_table (
                 id,
@@ -88,7 +88,7 @@ graphql_object!(Mutation: Context | &self | {
         Ok(DiningTable {
             id: row_id.hyphenated().to_string(),
             name: row.get("name"),
-            restaurant_id: input.restaurant_id,
+            restaurant_id: restaurant_id,
         })
     }
 
