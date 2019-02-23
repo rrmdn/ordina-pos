@@ -59,6 +59,17 @@ impl Context {
         let token = encode(&Header::default(), &claims, key.as_ref())?;
         Ok(token)
     }
+    pub fn create_partner_token(&self, partner_id: &String) -> FieldResult<String> {
+        let key = env::var("JWT_AUTH_SECRET")?;
+        let claims = Claims {
+            sub: partner_id.to_owned(),
+            company: "RRMDN".to_owned(),
+            exp: Utc::now().timestamp() + (60 * 60 * 24),
+            role: Roles::Partner,
+        };
+        let token = encode(&Header::default(), &claims, key.as_ref())?;
+        Ok(token)
+    }
     pub fn authorize(&self, role: Roles) -> FieldResult<()> {
         if let Some(claims) = &self.claims {
             if claims.claims.role == role {

@@ -17,6 +17,7 @@ extern crate r2d2_redis;
 extern crate jsonwebtoken as jwt;
 #[macro_use]
 extern crate serde_derive;
+extern crate crypto;
 mod schema;
 
 use std::env;
