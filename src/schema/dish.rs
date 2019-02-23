@@ -12,5 +12,4 @@ pub struct NewDish {
     pub name: String,
     pub description: String,
     pub price: i32,
-    pub restaurant_id: String,
 }

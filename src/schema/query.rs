@@ -1,7 +1,7 @@
 use uuid::Uuid;
 use juniper::{FieldError, FieldResult};
 
-use super::context::{Context};
+use super::context::{Context, Roles};
 use super::restaurant::Restaurant;
 use super::dining_table::DiningTable;
 use super::dish::Dish;
@@ -10,11 +10,12 @@ pub struct Query;
 
 graphql_object!(Query: Context |&self| {
     field request_auth(&executor, phone: String) -> FieldResult<String> {
-        executor.context().request_auth(&phone)?;
+        executor.context().request_auth(&phone, Roles::Customer)?;
         Ok("Requested".to_owned())
     }
     field restaurant(&executor, id: String) -> FieldResult<Restaurant> {
-        let conn = executor.context().pool.get()?;
+        let context = executor.context();
+        let conn = context.pool.get()?;
         let parsed_id = Uuid::parse_str(&id)?;
         let rows = conn.query("
             SELECT *

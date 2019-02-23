@@ -1,7 +1,7 @@
 use juniper::{FieldError, FieldResult};
 use uuid::Uuid;
 
-use super::context::Context;
+use super::context::{Context, Roles};
 use super::dining_table::{DiningTable, NewDiningTable};
 use super::dish::{Dish, NewDish};
 use super::restaurant::{NewRestaurant, Restaurant};
@@ -19,8 +19,11 @@ graphql_object!(Mutation: Context | &self | {
             ))
         }
     }
+
     field create_restaurant(&executor, input: NewRestaurant) -> FieldResult<Restaurant> {
-        let conn = executor.context().pool.get()?;
+        let context = executor.context();
+        context.authorize(Roles::Admin)?;
+        let conn = context.pool.get()?;
         let id = Uuid::new_v4();
         let inserts = conn.execute("
             INSERT INTO restaurant (
@@ -58,7 +61,9 @@ graphql_object!(Mutation: Context | &self | {
     }
 
     field create_dining_table(&executor, input: NewDiningTable) -> FieldResult<DiningTable> {
-        let conn = executor.context().pool.get()?;
+        let context = executor.context();
+        context.authorize(Roles::Partner)?;
+        let conn = context.pool.get()?;
         let id = Uuid::new_v4();
         let restaurant_id = Uuid::parse_str(&input.restaurant_id)?;
         let inserts = conn.execute("
@@ -88,9 +93,11 @@ graphql_object!(Mutation: Context | &self | {
     }
 
     field create_dish(&executor, input: NewDish) -> FieldResult<Dish> {
-        let conn = executor.context().pool.get()?;
+        let context = executor.context();
+        context.authorize(Roles::Partner)?;
+        let restaurant_id = context.get_partner_restaurant_id()?;
+        let conn = context.pool.get()?;
         let id = Uuid::new_v4();
-        let restaurant_id = Uuid::parse_str(&input.restaurant_id)?;
         let inserts = conn.execute("
             INSERT INTO dish (
                 id,
@@ -119,7 +126,7 @@ graphql_object!(Mutation: Context | &self | {
             name: row.get("name"),
             price: row.get("price"),
             description: row.get("description"),
-            restaurant_id: input.restaurant_id,
+            restaurant_id: restaurant_id,
         })
     }
 });

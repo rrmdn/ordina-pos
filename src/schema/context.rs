@@ -1,3 +1,4 @@
+use chrono::prelude::*;
 use iron::headers::{Authorization, Bearer};
 use iron::prelude::*;
 use juniper::{FieldError, FieldResult};
@@ -9,13 +10,36 @@ use r2d2_redis::{r2d2, RedisConnectionManager};
 use rand::{thread_rng, Rng};
 use std::env;
 use uuid::Uuid;
-use chrono::prelude::*;
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+pub enum Roles {
+    Admin,
+    Customer,
+    Partner,
+}
+
+impl Roles {
+    fn as_str(&self) -> &str {
+        match self {
+            &Roles::Admin => "Admin",
+            &Roles::Customer => "Customer",
+            &Roles::Partner => "Partner",
+        }
+    }
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
     pub sub: String,
     pub company: String,
     pub exp: i64,
+    pub role: Roles,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AuthCode {
+    client_id: String,
+    role: Roles,
 }
 
 #[derive(GraphQLInputObject)]
@@ -33,17 +57,67 @@ impl Context {
     pub fn authenticate(&self, code: &String) -> FieldResult<String> {
         let redis = self.redis_pool.get()?;
         let key = env::var("JWT_AUTH_SECRET")?;
-        let client_id = redis.get(code)?;
+        let auth_code_string: String = redis.get(code)?;
+        let auth_code: AuthCode = serde_json::from_str(&auth_code_string)?;
         let claims = Claims {
-            sub: client_id,
+            sub: auth_code.client_id,
             company: "RRMDN".to_owned(),
             exp: Utc::now().timestamp() + (60 * 60 * 24),
+            role: auth_code.role,
         };
         let _: () = redis.del(code)?;
         let token = encode(&Header::default(), &claims, key.as_ref())?;
         Ok(token)
     }
-    pub fn request_auth(&self, phone: &String) -> FieldResult<()> {
+    pub fn authorize(&self, role: Roles) -> FieldResult<()> {
+        if let Some(claims) = &self.claims {
+            if claims.claims.role == role {
+                return Ok(());
+            } else {
+                return Err(FieldError::new(
+                    "Unauthorized",
+                    graphql_value!({ "internal_error": "Unauthorized" }),
+                ));
+            }
+        }
+        Err(FieldError::new(
+            "Unauthenticated",
+            graphql_value!({ "internal_error": "Unauthenticated" }),
+        ))
+    }
+    pub fn get_client_id(&self) -> FieldResult<&String> {
+        if let Some(claims) = &self.claims {
+            return Ok(&claims.claims.sub);
+        }
+        Err(FieldError::new(
+            "Unauthenticated",
+            graphql_value!({ "internal_error": "Unauthenticated" }),
+        ))
+    }
+    pub fn get_partner_restaurant_id(&self) -> FieldResult<String> {
+        self.authorize(Roles::Partner)?;
+        let partner_id = self.get_client_id()?;
+        let partner_uuid = Uuid::parse_str(&partner_id)?;
+        let db = self.pool.get()?;
+        let rows = db.query(
+            "
+            SELECT restaurant_id
+            FROM customer
+            WHERE id = $1
+        ",
+            &[&partner_uuid],
+        )?;
+        if rows.is_empty() {
+            return Err(FieldError::new(
+                "Not found",
+                graphql_value!({ "internal_error": "Not found" }),
+            ));
+        }
+        let row = rows.get(0);
+        let restaurant_id: Uuid = row.get("restaurant_id");
+        Ok(restaurant_id.hyphenated().to_string())
+    }
+    pub fn request_auth(&self, phone: &String, role: Roles) -> FieldResult<()> {
         let redis = self.redis_pool.get()?;
         let db = self.pool.get()?;
         let rows = db.query(
@@ -63,7 +137,12 @@ impl Context {
         let row = rows.get(0);
         let customer_id: Uuid = row.get("id");
         let code = thread_rng().gen_range(100000, 999999);
-        let _: () = redis.set_ex(code, customer_id.hyphenated().to_string(), 3600)?;
+        let auth_code = AuthCode {
+            client_id: customer_id.hyphenated().to_string(),
+            role: role,
+        };
+        let auth_code_string = serde_json::to_string(&auth_code)?;
+        let _: () = redis.set_ex(code, auth_code_string, 3600)?;
         Ok(())
     }
 }
