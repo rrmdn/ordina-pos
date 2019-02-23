@@ -107,7 +107,7 @@ impl Context {
         let restaurant_id: Uuid = row.get("restaurant_id");
         Ok(restaurant_id.hyphenated().to_string())
     }
-    pub fn request_auth(&self, phone: &String, role: Roles) -> FieldResult<()> {
+    pub fn request_customer_auth(&self, phone: &String, role: Roles) -> FieldResult<()> {
         let redis = self.redis_pool.get()?;
         let db = self.pool.get()?;
         let rows = db.query(

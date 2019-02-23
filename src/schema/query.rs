@@ -9,8 +9,8 @@ use super::dish::Dish;
 pub struct Query;
 
 graphql_object!(Query: Context |&self| {
-    field request_auth(&executor, phone: String) -> FieldResult<String> {
-        executor.context().request_auth(&phone, Roles::Customer)?;
+    field request_customer_auth(&executor, phone: String) -> FieldResult<String> {
+        executor.context().request_customer_auth(&phone, Roles::Customer)?;
         Ok("Requested".to_owned())
     }
     field restaurant(&executor, id: String) -> FieldResult<Restaurant> {
