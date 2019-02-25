@@ -67,6 +67,7 @@ graphql_object!(Mutation: Context | &self | {
         context.authorize(Roles::Partner)?;
         let conn = context.pool.get()?;
         let restaurant_id = context.get_partner_restaurant_id()?;
+        let restaurant_uuid = Uuid::parse_str(&restaurant_id)?;
         let id = Uuid::new_v4();
         let inserts = conn.execute("
             INSERT INTO dining_table (
@@ -77,7 +78,7 @@ graphql_object!(Mutation: Context | &self | {
         ", &[
             &id,
             &input.name,
-            &restaurant_id
+            &restaurant_uuid
         ])?;
         let rows = conn.query("
             SELECT *
@@ -98,6 +99,7 @@ graphql_object!(Mutation: Context | &self | {
         let context = executor.context();
         context.authorize(Roles::Partner)?;
         let restaurant_id = context.get_partner_restaurant_id()?;
+        let restaurant_uuid = Uuid::parse_str(&restaurant_id)?;
         let conn = context.pool.get()?;
         let id = Uuid::new_v4();
         let inserts = conn.execute("
@@ -107,13 +109,13 @@ graphql_object!(Mutation: Context | &self | {
                 price,
                 description,
                 restaurant_id
-            ) VALUES ($1, $2, $3)
+            ) VALUES ($1, $2, $3, $4, $5)
         ", &[
             &id,
             &input.name,
             &input.price,
             &input.description,
-            &restaurant_id
+            &restaurant_uuid
         ])?;
         let rows = conn.query("
             SELECT *

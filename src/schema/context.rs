@@ -103,7 +103,7 @@ impl Context {
         let rows = db.query(
             "
             SELECT restaurant_id
-            FROM customer
+            FROM partner
             WHERE id = $1
         ",
             &[&partner_uuid],
