@@ -10,7 +10,10 @@ extern crate juniper;
 extern crate dotenv;
 extern crate iron_json_response as ijr;
 extern crate jsonwebtoken as jwt;
+#[macro_use]
 extern crate postgres;
+#[macro_use]
+extern crate postgres_derive;
 extern crate r2d2;
 extern crate r2d2_postgres;
 extern crate r2d2_redis;

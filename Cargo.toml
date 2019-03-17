@@ -9,6 +9,7 @@ hyper = "0.12"
 pretty_env_logger = "0.3"
 juniper = "0.11"
 postgres = { version = "0.15", features = ["with-uuid", "with-chrono"]}
+postgres-derive = "0.3"
 r2d2_postgres = "0.14.0"
 r2d2 = "0.8"
 uuid = { version = "0.5", features = ["v4"] }

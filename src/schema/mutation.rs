@@ -3,9 +3,10 @@ use juniper::{FieldError, FieldResult};
 use uuid::Uuid;
 
 use super::context::{Context, Roles};
-use super::customer_order::{CustomerOrder, NewCustomerOrder};
+use super::customer_order::{CustomerOrder, CustomerOrderStatus, NewCustomerOrder};
 use super::dining_table::{DiningTable, NewDiningTable};
 use super::dish::{Dish, NewDish};
+use super::dish_order::{DishOrder, NewDishOrder};
 use super::partner::{NewPartner, Partner, PartnerSignIn};
 use super::restaurant::{NewRestaurant, Restaurant};
 
@@ -227,21 +228,73 @@ graphql_object!(Mutation: Context | &self | {
         let dining_table_row = dining_table_rows.get(0);
         let restaurant_uuid: Uuid = dining_table_row.get("restaurant_id");
         let customer_order_uuid = Uuid::new_v4();
+        let status = CustomerOrderStatus::Open;
 
         let inserts = conn.query("
             INSERT INTO customer_order (
                 id,
                 restaurant_id,
                 dining_table_id,
-                customer_id
-            ) VALUES ($1, $2, $3, $4)
-        ", &[&customer_order_uuid, &restaurant_uuid, &dining_table_uuid, &customer_uuid])?;
+                customer_id,
+                status
+            ) VALUES ($1, $2, $3, $4, $5)
+        ", &[&customer_order_uuid, &restaurant_uuid, &dining_table_uuid, &customer_uuid, &status])?;
 
         Ok(CustomerOrder {
             id: customer_order_uuid.hyphenated().to_string(),
             restaurant_id: restaurant_uuid.hyphenated().to_string(),
             dining_table_id: dining_table_uuid.hyphenated().to_string(),
             customer_id: customer_uuid.hyphenated().to_string(),
+            status: status,
+        })
+    }
+
+    field create_dish_order(&executor, input: NewDishOrder) -> FieldResult<DishOrder> {
+        let context = executor.context();
+        context.authorize(Roles::Customer)?;
+        let customer_order_uuid = Uuid::parse_str(&input.customer_order_id)?;
+        let dish_uuid = Uuid::parse_str(&input.dish_id)?;
+
+        // validate order by checking restaurant and dish existence
+        let conn = context.pool.get()?;
+        let customer_order_rows = conn.query("
+            SELECT restaurant_id 
+            FROM customer_order
+            WHERE id = $1
+        ", &[&customer_order_uuid])?;
+        if customer_order_rows.is_empty() {
+            return Err(FieldError::new("Order is not valid", graphql_value!({"external_error": "Order is not valid"})));
+        }
+        let customer_order_row = customer_order_rows.get(0);
+        let restaurant_uuid: Uuid = customer_order_row.get("restaurant_id");
+
+        let restaurant_dish_rows = conn.query("
+            SELECT *
+            FROM dish
+            WHERE id = $1 AND restaurant_id = $2
+        ", &[&dish_uuid, &restaurant_uuid])?;
+        if restaurant_dish_rows.is_empty() {
+            return Err(FieldError::new("Dish does not exist", graphql_value!({"external_error": "Dish does not exist"})));
+        }
+
+        let dish_order_uuid = Uuid::new_v4();
+
+        let inserts = conn.query("
+            INSERT INTO dish_order (
+                id,
+                quantity,
+                note,
+                dish_id,
+                customer_order_id
+            ) VALUES ($1, $2, $3, $4, $5)
+        ", &[&dish_order_uuid, &input.quantity, &input.note, &dish_uuid, &customer_order_uuid])?;
+
+        Ok(DishOrder {
+            id: dish_order_uuid.hyphenated().to_string(),
+            quantity: input.quantity,
+            note: input.note,
+            dish_id: dish_uuid.hyphenated().to_string(),
+            customer_order_id: customer_order_uuid.hyphenated().to_string(),
         })
     }
 });

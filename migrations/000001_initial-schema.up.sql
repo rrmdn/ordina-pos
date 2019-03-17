@@ -21,6 +21,10 @@ CREATE TABLE dining_table (
     name character varying(50) NOT NULL
 );
 
+INSERT INTO "public"."dining_table"("id","created_at","restaurant_id","name")
+VALUES
+(E'a7a2b62d-5aff-4728-a233-0d95510f77eb',E'2019-02-25 07:15:20.34043',E'40ec87c9-d735-4a3f-b8f1-0fabeda6975b',E'Meja 2');
+
 CREATE TABLE dish (
     id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
     created_at timestamp without time zone NOT NULL DEFAULT now(),
@@ -51,9 +55,12 @@ CREATE TABLE device_info (
     created_at timestamp without time zone DEFAULT now()
 );
 
+CREATE TYPE customer_order_status AS ENUM ('Open', 'Closed', 'Done');
+
 CREATE TABLE customer_order (
     id uuid DEFAULT uuid_generate_v4() PRIMARY KEY,
     created_at timestamp without time zone NOT NULL DEFAULT now(),
+    status customer_order_status NOT NULL DEFAULT 'Open',
     restaurant_id uuid REFERENCES restaurant(id),
     dining_table_id uuid REFERENCES dining_table(id),
     customer_id uuid REFERENCES customer(id)
@@ -61,6 +68,8 @@ CREATE TABLE customer_order (
 
 CREATE TABLE dish_order (
     id uuid PRIMARY KEY,
+    quantity int NOT NULL DEFAULT 1,
+    note character varying(200),
     created_at timestamp without time zone NOT NULL DEFAULT now(),
     dish_id uuid REFERENCES dish(id),
     customer_order_id uuid REFERENCES customer_order(id)
