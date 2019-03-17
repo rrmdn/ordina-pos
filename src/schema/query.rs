@@ -1,10 +1,10 @@
-use uuid::Uuid;
 use juniper::{FieldError, FieldResult};
+use uuid::Uuid;
 
 use super::context::{Context, Roles};
-use super::restaurant::Restaurant;
 use super::dining_table::DiningTable;
 use super::dish::Dish;
+use super::restaurant::Restaurant;
 
 pub struct Query;
 

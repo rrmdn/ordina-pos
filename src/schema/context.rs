@@ -44,6 +44,24 @@ pub struct Context {
 }
 
 impl Context {
+    pub fn create_anonymous_customer_token(&self) -> FieldResult<String> {
+        let conn = self.pool.get()?;
+        let anonymous_customer_id = Uuid::new_v4();
+        let _inserts = conn.query("
+            INSERT INTO customer (
+                id
+            ) VALUES ($1)
+        ", &[&anonymous_customer_id])?;
+        let key = env::var("JWT_AUTH_SECRET")?;
+        let claims = Claims {
+            sub: anonymous_customer_id.hyphenated().to_string(),
+            company: "RRMDN".to_owned(),
+            exp: Utc::now().timestamp() + (60 * 60 * 24),
+            role: Roles::Customer,
+        };
+        let token = encode(&Header::default(), &claims, key.as_ref())?;
+        Ok(token)
+    }
     pub fn authenticate(&self, code: &String) -> FieldResult<String> {
         let redis = self.redis_pool.get()?;
         let key = env::var("JWT_AUTH_SECRET")?;

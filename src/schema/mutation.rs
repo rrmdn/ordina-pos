@@ -1,12 +1,13 @@
+use crypto::digest::Digest;
 use juniper::{FieldError, FieldResult};
 use uuid::Uuid;
-use crypto::digest::Digest;
 
 use super::context::{Context, Roles};
+use super::customer_order::{CustomerOrder, NewCustomerOrder};
 use super::dining_table::{DiningTable, NewDiningTable};
 use super::dish::{Dish, NewDish};
-use super::restaurant::{NewRestaurant, Restaurant};
 use super::partner::{NewPartner, Partner, PartnerSignIn};
+use super::restaurant::{NewRestaurant, Restaurant};
 
 pub struct Mutation;
 
@@ -20,6 +21,10 @@ graphql_object!(Mutation: Context | &self | {
                 graphql_value!({ "internal_error": "Code is no longer valid" })
             ))
         }
+    }
+
+    field create_anonymous_customer_token(&executor) -> FieldResult<String> {
+        executor.context().create_anonymous_customer_token()
     }
 
     field create_restaurant(&executor, input: NewRestaurant) -> FieldResult<Restaurant> {
@@ -182,7 +187,7 @@ graphql_object!(Mutation: Context | &self | {
             restaurant_id: restaurant_id.hyphenated().to_string(),
         })
     }
-    
+
     field partner_sign_in(&executor, input: PartnerSignIn) -> FieldResult<String> {
         let context = executor.context();
         let conn = context.pool.get()?;
@@ -201,5 +206,42 @@ graphql_object!(Mutation: Context | &self | {
         let partner_id: Uuid = row.get("id");
         let token = context.create_partner_token(&partner_id.hyphenated().to_string())?;
         Ok(token)
+    }
+
+    field create_customer_order(&executor, input: NewCustomerOrder) -> FieldResult<CustomerOrder> {
+        let context = executor.context();
+        context.authorize(Roles::Customer)?;
+        let customer_id = context.get_client_id()?;
+        let customer_uuid = Uuid::parse_str(&customer_id)?;
+        let dining_table_uuid = Uuid::parse_str(&input.dining_table_id)?;
+        let conn = context.pool.get()?;
+
+        let dining_table_rows = conn.query("
+            SELECT restaurant_id
+            FROM dining_table
+            WHERE id = $1", &[&dining_table_uuid])?;
+        if dining_table_rows.is_empty() {
+            return Err(FieldError::new("Notfound", graphql_value!({"external_error": "Dining table does not exist"})));
+        }
+
+        let dining_table_row = dining_table_rows.get(0);
+        let restaurant_uuid: Uuid = dining_table_row.get("restaurant_id");
+        let customer_order_uuid = Uuid::new_v4();
+
+        let inserts = conn.query("
+            INSERT INTO customer_order (
+                id,
+                restaurant_id,
+                dining_table_id,
+                customer_id
+            ) VALUES ($1, $2, $3, $4)
+        ", &[&customer_order_uuid, &restaurant_uuid, &dining_table_uuid, &customer_uuid])?;
+
+        Ok(CustomerOrder {
+            id: customer_order_uuid.hyphenated().to_string(),
+            restaurant_id: restaurant_uuid.hyphenated().to_string(),
+            dining_table_id: dining_table_uuid.hyphenated().to_string(),
+            customer_id: customer_uuid.hyphenated().to_string(),
+        })
     }
 });

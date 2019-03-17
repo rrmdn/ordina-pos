@@ -5,12 +5,12 @@ use super::context::Context;
 use super::dining_table::DiningTable;
 
 pub struct Restaurant {
-  pub id: String,
-  pub name: String,
-  pub address: String,
-  pub logo: String,
-  pub cover: String,
-  pub location_url: String,
+    pub id: String,
+    pub name: String,
+    pub address: String,
+    pub logo: String,
+    pub cover: String,
+    pub location_url: String,
 }
 
 graphql_object!(Restaurant: Context | &self | {
